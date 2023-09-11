@@ -10,8 +10,10 @@ import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.hmdp.utils.RedisConstants;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import javax.annotation.Resource;
+import java.util.concurrent.TimeUnit;
 
 /**
  * <p>
@@ -46,7 +48,22 @@ public class ShopServiceImpl extends ServiceImpl<ShopMapper, Shop> implements IS
         }
         // 4.2 存在 写入redis 返回
         String shop2Json = JSONUtil.toJsonStr(shop);
-        stringRedisTemplate.opsForValue().set(CacheShopKey, shop2Json);
+        stringRedisTemplate.opsForValue().set(CacheShopKey, shop2Json, RedisConstants.CACHE_SHOP_TTL, TimeUnit.MINUTES);
         return Result.ok(shop2Json);
+    }
+
+    // 更新缓存 一致性操作
+    @Override
+    @Transactional
+    public Result update(Shop shop) {
+        Long shopId = shop.getId();
+        if (shopId == null) {
+            return Result.fail("店铺id不能为空");
+        }
+        // 1.更新数据库
+        updateById(shop);
+        // 2.删除缓存
+        stringRedisTemplate.delete(RedisConstants.CACHE_SHOP_KEY + shopId);
+        return Result.ok();
     }
 }
