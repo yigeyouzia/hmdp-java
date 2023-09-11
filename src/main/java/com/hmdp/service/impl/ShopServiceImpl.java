@@ -9,6 +9,7 @@ import com.hmdp.entity.Shop;
 import com.hmdp.mapper.ShopMapper;
 import com.hmdp.service.IShopService;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
+import com.hmdp.utils.CacheClient;
 import com.hmdp.utils.RedisConstants;
 import com.hmdp.utils.RedisData;
 import com.hmdp.utils.SystemConstants;
@@ -21,6 +22,8 @@ import java.time.LocalDateTime;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
+
+import static com.hmdp.utils.RedisConstants.CACHE_SHOP_TTL;
 
 /**
  * <p>
@@ -37,9 +40,14 @@ public class ShopServiceImpl extends ServiceImpl<ShopMapper, Shop> implements IS
     @Resource
     private StringRedisTemplate stringRedisTemplate;
 
+    @Resource
+    private CacheClient cacheClient;
+
     @Override
     public Result queryById(Long id) {
         // 解决缓存穿透
+        // Shop shop1 = cacheClient.queryWithPassThrough(RedisConstants.CACHE_SHOP_KEY, id, Shop.class,
+        // this::getById,CACHE_SHOP_TTL, TimeUnit.MINUTES);
         // Shop shop = queryWithPassThrough(id);
         // 互斥锁解决缓存击穿
         // Shop shop = queryWithMutex(id);
@@ -144,7 +152,7 @@ public class ShopServiceImpl extends ServiceImpl<ShopMapper, Shop> implements IS
             // 6. shop存在 写入redis 返回
             String shop2Json = JSONUtil.toJsonStr(shop);
             stringRedisTemplate.opsForValue().set(CacheShopKey, shop2Json,
-                    RedisConstants.CACHE_SHOP_TTL, TimeUnit.MINUTES);
+                    CACHE_SHOP_TTL, TimeUnit.MINUTES);
         } catch (InterruptedException e) {
             throw new RuntimeException(e);
         } finally {
@@ -180,7 +188,7 @@ public class ShopServiceImpl extends ServiceImpl<ShopMapper, Shop> implements IS
         }
         // 4.2 存在 写入redis 返回
         String shop2Json = JSONUtil.toJsonStr(shop);
-        stringRedisTemplate.opsForValue().set(CacheShopKey, shop2Json, RedisConstants.CACHE_SHOP_TTL, TimeUnit.MINUTES);
+        stringRedisTemplate.opsForValue().set(CacheShopKey, shop2Json, CACHE_SHOP_TTL, TimeUnit.MINUTES);
         return shop;
     }
 
