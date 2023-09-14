@@ -52,10 +52,13 @@ public class VoucherOrderServiceImpl extends ServiceImpl<VoucherOrderMapper, Vou
             return Result.fail("手慢无😥😥");
         }
         // 5.扣减库存
-        seckillVoucherService.update()
+        boolean success = seckillVoucherService.update()
                 .setSql("stock = stock - 1")
-                .eq("voucher_id", voucherId)
+                .gt("stock", 0) // TODO 乐观锁解决优惠券秒杀 只要大于0就卖
                 .update();
+        if(!success) {
+            return Result.fail("失败😥库存不足！！");
+        }
         // 6.创建订单
         VoucherOrder voucherOrder = new VoucherOrder();
         // 6.1 订单id
