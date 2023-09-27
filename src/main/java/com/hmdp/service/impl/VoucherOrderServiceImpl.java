@@ -11,6 +11,8 @@ import com.hmdp.utils.RedisConstants;
 import com.hmdp.utils.RedisIdWorker;
 import com.hmdp.utils.SimpleRedisLock;
 import com.hmdp.utils.UserHolder;
+import org.redisson.api.RLock;
+import org.redisson.api.RedissonClient;
 import org.springframework.aop.framework.AopContext;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
@@ -40,6 +42,9 @@ public class VoucherOrderServiceImpl extends ServiceImpl<VoucherOrderMapper, Vou
     @Resource
     private StringRedisTemplate stringRedisTemplate;
 
+    @Resource
+    private RedissonClient redissonClient;
+
     @Override
     public Result seckillVoucher(Long voucherId) {
         // 1.查询优惠券
@@ -60,10 +65,12 @@ public class VoucherOrderServiceImpl extends ServiceImpl<VoucherOrderMapper, Vou
 
         // TODO 一人一单 给userid加synchronized
         Long userId = UserHolder.getUser().getId();
-        // TODO 分布式锁
-        SimpleRedisLock lock = new SimpleRedisLock("order:" + userId, stringRedisTemplate);
+        // TODO 分布式锁 reddisson
+        // SimpleRedisLock lock = new SimpleRedisLock("order:" + userId, stringRedisTemplate);
+        RLock lock = redissonClient.getLock("lock:order:" + userId);
         //获取锁
-        boolean isLock = lock.tryLock(RedisConstants.SIMPLE_REDIS_LOCK_DDL);
+        // boolean isLock = lock.tryLock(RedisConstants.SIMPLE_REDIS_LOCK_DDL);
+        boolean isLock = lock.tryLock();
         if (!isLock) {
             // 获取失败
             return Result.fail("你小子开挂是吧！一人一单🤨🤨");
